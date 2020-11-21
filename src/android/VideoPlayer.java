@@ -13,6 +13,7 @@ import android.media.MediaPlayer.OnPreparedListener;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
+import android.view.View;
 import android.view.Gravity;
 import android.view.SurfaceHolder;
 import android.view.Window;
@@ -29,7 +30,8 @@ import org.apache.cordova.PluginResult;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, OnPreparedListener, OnErrorListener, OnDismissListener {
+public class VideoPlayer extends CordovaPlugin
+        implements OnCompletionListener, OnPreparedListener, OnErrorListener, OnDismissListener {
 
     protected static final String LOG_TAG = "VideoPlayer";
 
@@ -43,27 +45,32 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
 
     private MediaPlayer player;
 
+    static int ui_flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+
     /**
      * Executes the request and returns PluginResult.
      *
-     * @param action        The action to execute.
-     * @param args          JSONArray of arguments for the plugin.
-     * @param callbackId    The callback id used when calling back into JavaScript.
-     * @return              A PluginResult object with a status and message.
+     * @param action     The action to execute.
+     * @param args       JSONArray of arguments for the plugin.
+     * @param callbackId The callback id used when calling back into JavaScript.
+     * @return A PluginResult object with a status and message.
      */
-    public boolean execute(String action, CordovaArgs args, CallbackContext callbackContext) throws JSONException {
+    public boolean execute(final String action, final CordovaArgs args, CallbackContext callbackContext)
+            throws JSONException {
         if (action.equals("play")) {
             this.callbackContext = callbackContext;
 
-            CordovaResourceApi resourceApi = webView.getResourceApi();
-            String target = args.getString(0);
+            final CordovaResourceApi resourceApi = webView.getResourceApi();
+            final String target = args.getString(0);
             final JSONObject options = args.getJSONObject(1);
 
             String fileUriStr;
             try {
-                Uri targetUri = resourceApi.remapUri(Uri.parse(target));
+                final Uri targetUri = resourceApi.remapUri(Uri.parse(target));
                 fileUriStr = targetUri.toString();
-            } catch (IllegalArgumentException e) {
+            } catch (final IllegalArgumentException e) {
                 fileUriStr = target;
             }
 
@@ -79,24 +86,28 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
             });
 
             // Don't return any result now
-            PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
+            final PluginResult pluginResult = new PluginResult(PluginResult.Status.NO_RESULT);
             pluginResult.setKeepCallback(true);
             callbackContext.sendPluginResult(pluginResult);
             callbackContext = null;
 
             return true;
-        }
-        else if (action.equals("close")) {
+        } else if (action.equals("close")) {
             if (dialog != null) {
-                if(player.isPlaying()) {
-                    player.stop();
+                try {
+                    if (player.isPlaying()) {
+                        player.stop();
+                    }
+                } catch (final IllegalStateException e) {
+                    Log.d(LOG_TAG, "Illegal state exception when closing dialog: " + e.toString());
+                } finally {
+                    player.release();
+                    dialog.dismiss();
                 }
-                player.release();
-                dialog.dismiss();
             }
 
             if (callbackContext != null) {
-                PluginResult result = new PluginResult(PluginResult.Status.OK);
+                final PluginResult result = new PluginResult(PluginResult.Status.OK);
                 result.setKeepCallback(false); // release status callback in JS side
                 callbackContext.sendPluginResult(result);
                 callbackContext = null;
@@ -108,13 +119,13 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     }
 
     /**
-     * Removes the "file://" prefix from the given URI string, if applicable.
-     * If the given URI string doesn't have a "file://" prefix, it is returned unchanged.
+     * Removes the "file://" prefix from the given URI string, if applicable. If the
+     * given URI string doesn't have a "file://" prefix, it is returned unchanged.
      *
      * @param uriString the URI string to operate on
      * @return a path without the "file://" prefix
      */
-    public static String stripFileProtocol(String uriString) {
+    public static String stripFileProtocol(final String uriString) {
         if (uriString.startsWith("file://")) {
             return Uri.parse(uriString).getPath();
         }
@@ -122,25 +133,23 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
-    protected void openVideoDialog(String path, JSONObject options) {
+    protected void openVideoDialog(final String path, final JSONObject options) {
         // Let's create the main dialog
+        Log.d(LOG_TAG, "Setting ui_flags");
+        try {
+            cordova.getActivity().getWindow().getDecorView().setSystemUiVisibility(ui_flags);
+        } catch (final Exception e) {
+             Log.d(LOG_TAG, "Catch Error Settings Flags");
+        }
+	
         dialog = new Dialog(cordova.getActivity(), android.R.style.Theme_NoTitleBar);
         dialog.getWindow().getAttributes().windowAnimations = android.R.style.Animation_Dialog;
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setCancelable(true);
         dialog.setOnDismissListener(this);
-        dialog.getWindow().setFlags(LayoutParams.FLAG_FULLSCREEN, LayoutParams.FLAG_FULLSCREEN);
-	/* Get phonegap build error when addind this
-       dialog.getWindow().getDecorView().setSystemUiVisibility(
-				View.SYSTEM_UI_FLAG_HIDE_NAVIGATION//
-				| View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-				//| View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-				//| View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-				| View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-			);		
-        */
-        // Main container layout
-        LinearLayout main = new LinearLayout(cordova.getActivity());
+       
+       // Main container layout
+        final LinearLayout main = new LinearLayout(cordova.getActivity());
         main.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         main.setOrientation(LinearLayout.VERTICAL);
         main.setHorizontalGravity(Gravity.CENTER_HORIZONTAL);
@@ -151,32 +160,30 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         // videoView.setVideoURI(uri);
         // videoView.setVideoPath(path);
         main.addView(videoView);
-        
-       
+
         player = new MediaPlayer();
         player.setOnPreparedListener(this);
         player.setOnCompletionListener(this);
         player.setOnErrorListener(this);
 
         if (path.startsWith(ASSETS)) {
-            String f = path.substring(15);
+            final String f = path.substring(15);
             AssetFileDescriptor fd = null;
             try {
                 fd = cordova.getActivity().getAssets().openFd(f);
                 player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+            } catch (final Exception e) {
+                final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
                 result.setKeepCallback(false); // release status callback in JS side
                 callbackContext.sendPluginResult(result);
                 callbackContext = null;
                 return;
             }
-        }
-        else {
+        } else {
             try {
                 player.setDataSource(path);
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+            } catch (final Exception e) {
+                final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
                 result.setKeepCallback(false); // release status callback in JS side
                 callbackContext.sendPluginResult(result);
                 callbackContext = null;
@@ -185,20 +192,20 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         }
 
         try {
-            float volume = Float.valueOf(options.getString("volume"));
+            final float volume = Float.valueOf(options.getString("volume"));
             Log.d(LOG_TAG, "setVolume: " + volume);
             player.setVolume(volume, volume);
-        } catch (Exception e) {
-            PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+        } catch (final Exception e) {
+            final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
             result.setKeepCallback(false); // release status callback in JS side
             callbackContext.sendPluginResult(result);
             callbackContext = null;
             return;
         }
 
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
             try {
-                int scalingMode = options.getInt("scalingMode");
+                final int scalingMode = options.getInt("scalingMode");
                 switch (scalingMode) {
                     case MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING:
                         Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING");
@@ -208,8 +215,8 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
                         Log.d(LOG_TAG, "setVideoScalingMode VIDEO_SCALING_MODE_SCALE_TO_FIT");
                         player.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);
                 }
-            } catch (Exception e) {
-                PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+            } catch (final Exception e) {
+                final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
                 result.setKeepCallback(false); // release status callback in JS side
                 callbackContext.sendPluginResult(result);
                 callbackContext = null;
@@ -221,39 +228,45 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
         mHolder.setKeepScreenOn(true);
         mHolder.addCallback(new SurfaceHolder.Callback() {
             @Override
-            public void surfaceCreated(SurfaceHolder holder) {
+            public void surfaceCreated(final SurfaceHolder holder) {
                 player.setDisplay(holder);
                 try {
                     player.prepare();
-                } catch (Exception e) {
-                    PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
+                } catch (final Exception e) {
+                    final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getLocalizedMessage());
                     result.setKeepCallback(false); // release status callback in JS side
                     callbackContext.sendPluginResult(result);
                     callbackContext = null;
                 }
             }
+
             @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
+            public void surfaceDestroyed(final SurfaceHolder holder) {
                 player.release();
             }
+
             @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+            public void surfaceChanged(final SurfaceHolder holder, final int format, final int width,
+                    final int height) {
+            }
         });
 
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+        final WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
         lp.copyFrom(dialog.getWindow().getAttributes());
         lp.width = WindowManager.LayoutParams.MATCH_PARENT;
         lp.height = WindowManager.LayoutParams.MATCH_PARENT;
 
         dialog.setContentView(main);
+        dialog.getWindow().getDecorView().setSystemUiVisibility(ui_flags);
+        dialog.getWindow().setFlags(LayoutParams.FLAG_FULLSCREEN, LayoutParams.FLAG_FULLSCREEN);
         dialog.show();
         dialog.getWindow().setAttributes(lp);
     }
 
     @Override
-    public boolean onError(MediaPlayer mp, int what, int extra) {
+    public boolean onError(final MediaPlayer mp, final int what, final int extra) {
         Log.e(LOG_TAG, "MediaPlayer.onError(" + what + ", " + extra + ")");
-        if(mp.isPlaying()) {
+        if (mp.isPlaying()) {
             mp.stop();
         }
         mp.release();
@@ -262,22 +275,22 @@ public class VideoPlayer extends CordovaPlugin implements OnCompletionListener, 
     }
 
     @Override
-    public void onPrepared(MediaPlayer mp) {
+    public void onPrepared(final MediaPlayer mp) {
         mp.start();
     }
 
     @Override
-    public void onCompletion(MediaPlayer mp) {
+    public void onCompletion(final MediaPlayer mp) {
         Log.d(LOG_TAG, "MediaPlayer completed");
         mp.release();
         dialog.dismiss();
     }
 
     @Override
-    public void onDismiss(DialogInterface dialog) {
+    public void onDismiss(final DialogInterface dialog) {
         Log.d(LOG_TAG, "Dialog dismissed");
         if (callbackContext != null) {
-            PluginResult result = new PluginResult(PluginResult.Status.OK);
+            final PluginResult result = new PluginResult(PluginResult.Status.OK);
             result.setKeepCallback(false); // release status callback in JS side
             callbackContext.sendPluginResult(result);
             callbackContext = null;
