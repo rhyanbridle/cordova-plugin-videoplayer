@@ -78,6 +78,11 @@ public class VideoPlayer extends CordovaPlugin
 
             final String path = stripFileProtocol(fileUriStr);
 
+	    try {
+                cordova.getActivity().getWindow().getDecorView().setSystemUiVisibility(ui_flags);
+            } catch (final Exception e) {
+                Log.d(LOG_TAG, "Catch Error Settings Flags");
+            }
             // Create dialog in new thread
             cordova.getActivity().runOnUiThread(new Runnable() {
                 public void run() {
@@ -135,7 +140,7 @@ public class VideoPlayer extends CordovaPlugin
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
     protected void openVideoDialog(final String path, final JSONObject options) {
         // Let's create the main dialog
-        Log.d(LOG_TAG, "Setting ui_flags: Testing");
+        //Log.d(LOG_TAG, "Setting ui_flags: Testing");
         try {
             cordova.getActivity().getWindow().getDecorView().setSystemUiVisibility(ui_flags);
         } catch (final Exception e) {
