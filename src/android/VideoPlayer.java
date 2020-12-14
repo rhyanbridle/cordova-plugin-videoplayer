@@ -263,10 +263,10 @@ public class VideoPlayer extends CordovaPlugin
         lp.height = WindowManager.LayoutParams.MATCH_PARENT;
 
         dialog.setContentView(main);
-	dialog.getWindow().setFlags(LayoutParams.FLAG_NOT_FOCUSABLE, LayoutParams.FLAG_NOT_FOCUSABLE);
+	//dialog.getWindow().setFlags(LayoutParams.FLAG_NOT_FOCUSABLE, LayoutParams.FLAG_NOT_FOCUSABLE);
         dialog.getWindow().getDecorView().setSystemUiVisibility(ui_flags);
         dialog.getWindow().setFlags(LayoutParams.FLAG_FULLSCREEN, LayoutParams.FLAG_FULLSCREEN);
-	dialog.getWindow().clearFlags(LayoutParams.FLAG_NOT_FOCUSABLE, LayoutParams.FLAG_NOT_FOCUSABLE);
+	//dialog.getWindow().clearFlags(LayoutParams.FLAG_NOT_FOCUSABLE, LayoutParams.FLAG_NOT_FOCUSABLE);
         dialog.show();
         dialog.getWindow().setAttributes(lp);
     }
